@@ -91,9 +91,20 @@ static AnimationBlendNode* FindNodeByUniqueID(AnimationBlendNode* node, int uniq
     return NULL;
 }
 
+static int FindBoneByName(AnimationBlendTree* abt, const char* name)
+{
+    for (int i = 0; i < abt->boneCount; i++) {
+        if (strncmp(abt->bones[i].name, name, sizeof(abt->bones[i].name)) == 0) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
 static ConvertedAnimation LoadConvertedAnimationData(AnimationBlendTree* abt, ModelAnimation animation)
 {
-    ConvertedAnimation cad;
+    ConvertedAnimation cad = { 0 };
 
     strncpy_s(&cad.name[0], sizeof(cad.name), &animation.name[0], sizeof(animation.name));
     cad.frameCount = animation.frameCount;
@@ -102,7 +113,7 @@ static ConvertedAnimation LoadConvertedAnimationData(AnimationBlendTree* abt, Mo
         Transform* poses = MemAlloc(sizeof(Transform) * animation.boneCount);
 
         for (int i = 0; i < animation.boneCount; i++) {
-            Transform result;
+            Transform result = { 0 };
 
             Transform pose = animation.framePoses[frame][i];
             BoneInfo bone = abt->bones[i];
@@ -257,10 +268,16 @@ static void Evaluate(AnimationBlendTree* abt, AnimationBlendNode* node, float de
         const float t = node->add.weight;
 
         for (int i = 0; i < abt->boneCount; i++) {
+            // TODO: あらかじめ計算済みを用意するか？
             if (node->add.filteredBones) {
-                if (node->add.filteredBones[i]) {
-                    continue;
+                bool found = false;
+                for (int k = 0; k < node->add.filteredBoneCount; k++) {
+                    if (0 <= FindBoneByName(abt, node->add.filteredBones[k])) {
+                        found = true;
+                        break;
+                    }
                 }
+                if (found) continue;
             }
 
             result->pose[i].translation = Vector3Lerp(
@@ -276,6 +293,7 @@ static void Evaluate(AnimationBlendTree* abt, AnimationBlendNode* node, float de
                 ),
                 result->pose[i].rotation
             );
+            // TODO: 後で対応する
             /*result->pose[i].scale = Vector3Lerp(
                 result->pose[i].scale,
                 mixResult->pose[i].scale,
@@ -293,10 +311,16 @@ static void Evaluate(AnimationBlendTree* abt, AnimationBlendNode* node, float de
         const float t = node->lerp.weight;
 
         for (int i = 0; i < abt->boneCount; i++) {
+            // TODO: あらかじめ計算済みを用意するか？
             if (node->lerp.filteredBones) {
-                if (node->lerp.filteredBones[i]) {
-                    continue;
+                bool found = false;
+                for (int k = 0; k < node->lerp.filteredBoneCount; k++) {
+                    if (0 <= FindBoneByName(abt, node->lerp.filteredBones[k])) {
+                        found = true;
+                        break;
+                    }
                 }
+                if (found) continue;
             }
 
             result->pose[i].translation = Vector3Lerp(

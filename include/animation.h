@@ -83,8 +83,8 @@ typedef struct AnimationBlendNodeInput2 {
     AnimationBlendNode* input;              // 入力
     AnimationBlendNode* mixInput;           // 合成
     float weight;                           // ウェイト
-
-    bool* filteredBones;                    // ボーン合成
+    const char** filteredBones;             // ボーンフィルタリスト
+    int filteredBoneCount;                  // ボーンフィルタ数
 } AnimationBlendNodeInput2;
 
 // 遷移アニメーションノード
