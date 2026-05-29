@@ -107,21 +107,21 @@ static ConvertedAnimation LoadConvertedAnimationData(AnimationBlendTree* abt, Mo
     ConvertedAnimation cad = { 0 };
 
     strncpy_s(&cad.name[0], sizeof(cad.name), &animation.name[0], sizeof(animation.name));
-    cad.frameCount = animation.frameCount;
-    cad.framePoses = MemAlloc(sizeof(Transform*) * animation.frameCount);
-    for (int frame = 0; frame < animation.frameCount; frame++) {
+    cad.frameCount = animation.keyframeCount;
+    cad.framePoses = MemAlloc(sizeof(Transform*) * animation.keyframeCount);
+    for (int frame = 0; frame < animation.keyframeCount; frame++) {
         Transform* poses = MemAlloc(sizeof(Transform) * animation.boneCount);
 
         for (int i = 0; i < animation.boneCount; i++) {
             Transform result = { 0 };
 
-            Transform pose = animation.framePoses[frame][i];
+            Transform pose = animation.keyframePoses[frame][i];
             BoneInfo bone = abt->bones[i];
             BoneRestInfo boneRest = abt->boneRests[i];
             const int parent = bone.parent;
 
             if (parent != -1) {
-                Transform parentPose = animation.framePoses[frame][parent];
+                Transform parentPose = animation.keyframePoses[frame][parent];
                 result.translation = (
                     Vector3Subtract(
                         Vector3RotateByQuaternion(
@@ -400,30 +400,30 @@ static void Evaluate(AnimationBlendTree* abt, AnimationBlendNode* node, float de
 RLAPI AnimationBlendTree LoadAnimationBlendTree(Model model, ModelAnimation* animations, int animationCount, AnimationBlendNode* root)
 {
     AnimationBlendTree abt = { 0 };
-    if (model.boneCount == 0) {
+    if (model.skeleton.boneCount == 0) {
         return abt;
     }
 
     //
-    abt.boneCount = model.boneCount;
-    abt.bones = model.bones;
-    abt.boneRests = MemAlloc(sizeof(BoneRestInfo) * model.boneCount);
-    for (int i = 0; i < model.boneCount; i++) {
-        const int parent = model.bones[i].parent;
-        abt.boneRests[i].invRotation = QuaternionInvert(model.bindPose[i].rotation);
+    abt.boneCount = model.skeleton.boneCount;
+    abt.bones = model.skeleton.bones;
+    abt.boneRests = MemAlloc(sizeof(BoneRestInfo) * model.skeleton.boneCount);
+    for (int i = 0; i < model.skeleton.boneCount; i++) {
+        const int parent = model.skeleton.bones[i].parent;
+        abt.boneRests[i].invRotation = QuaternionInvert(model.skeleton.bindPose[i].rotation);
 
         if (parent != -1) {
             abt.boneRests[i].location = Vector3RotateByQuaternion(
-                Vector3Subtract(model.bindPose[i].translation, model.bindPose[parent].translation)
+                Vector3Subtract(model.skeleton.bindPose[i].translation, model.skeleton.bindPose[parent].translation)
                 , abt.boneRests[parent].invRotation
             );
             abt.boneRests[i].parentToPose = QuaternionMultiply(
                 abt.boneRests[i].invRotation
-                , model.bindPose[parent].rotation
+                , model.skeleton.bindPose[parent].rotation
             );
             abt.boneRests[i].poseToParent = QuaternionMultiply(
                 abt.boneRests[parent].invRotation
-                , model.bindPose[i].rotation
+                , model.skeleton.bindPose[i].rotation
             );
         }
         else {
@@ -442,11 +442,11 @@ RLAPI AnimationBlendTree LoadAnimationBlendTree(Model model, ModelAnimation* ani
     // スタック
     abt.stack = MemAlloc(sizeof(AnimationBlendResult) * MAX_BLEND_RESULT_STACK);
     for (int i = 0; i < MAX_BLEND_RESULT_STACK; i++) {
-        abt.stack[i].pose = MemAlloc(sizeof(Transform) * model.boneCount);
+        abt.stack[i].pose = MemAlloc(sizeof(Transform) * model.skeleton.boneCount);
     }
 
     // 返却用ポーズバッファ
-    abt.convertedPose = MemAlloc(sizeof(Transform) * model.boneCount);
+    abt.convertedPose = MemAlloc(sizeof(Transform) * model.skeleton.boneCount);
     abt.transferPointer = MemAlloc(sizeof(Transform*) * 1);
     abt.transferPointer[0] = abt.convertedPose;
 
@@ -531,10 +531,10 @@ RLAPI ModelAnimation EvalAnimationBlendTree(AnimationBlendTree abt, float delta)
         }
     }
 
-    ma.frameCount = 1;
+    ma.keyframeCount = 1;
     ma.boneCount = abt.boneCount;
-    ma.bones = abt.bones;
-    ma.framePoses = abt.transferPointer;
+    //ma.bones = abt.bones;
+    ma.keyframePoses = abt.transferPointer;
 
     return ma;
 }
